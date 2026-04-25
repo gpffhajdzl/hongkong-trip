@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<title>HK · Apr 26</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css" rel="stylesheet">
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<style>
+  :root {
+    --bg: #ffffff;
+    --ink: #0e0e0e;
+    --ink-2: #4a4a4a;
+    --ink-3: #8a8a8a;
+    --ink-4: #c2c2c2;
+    --line: #ececec;
+    --line-2: #f3f3f3;
+
+    --food: #c73e3e;
+    --sight: #2b5cd9;
+    --shop: #7b3fbd;
+    --hotel: #6b8e7c;
+
+    --sans: 'Pretendard Variable', -apple-system, sans-serif;
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    letter-spacing: -0.012em;
+    font-feature-settings: "ss01";
+  }
+
+  body {
+    max-width: 520px;
+    margin: 0 auto;
+    min-height: 100dvh;
+    padding-bottom: calc(env(safe-area-inset-bottom) + 40px);
+  }
+
+  a { color: inherit; }
+  button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; }
+
+  .topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: calc(env(safe-area-inset-top) + 18px) 24px 14px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink-3);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .topbar .brand { color: var(--ink); font-weight: 500; }
+
+  .nav {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    background: var(--bg);
+    border-bottom: 1px solid var(--line);
+    padding: 0 24px;
+    display: flex;
+    gap: 28px;
+    padding-top: calc(env(safe-area-inset-top) + 4px);
+  }
+  .nav-btn {
+    padding: 14px 0 12px;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--ink-3);
+    position: relative;
+    letter-spacing: -0.005em;
+  }
+  .nav-btn.active { color: var(--ink); }
+  .nav-btn.active::after {
+    content: "";
+    position: absolute;
+    left: 0; right: 0; bottom: -1px;
+    height: 1px;
+    background: var(--ink);
+  }
+  .nav-btn .day-num {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink-4);
+    margin-right: 6px;
+    letter-spacing: 0.04em;
+  }
+  .nav-btn.active .day-num { color: var(--ink-2); }
+
+  .view { display: none; }
+  .view.active { display: block; animation: enter 0.35s ease; }
+  @keyframes enter {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .head { padding: 40px 24px 28px; }
+  .head .cap {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink-3);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 14px;
+  }
+  .head h1 {
+    font-size: 40px;
+    font-weight: 600;
+    line-height: 1.05;
+    letter-spacing: -0.035em;
+    margin-bottom: 14px;
+  }
+  .head h1 .en {
+    display: block;
+    font-weight: 300;
+    color: var(--ink-3);
+    font-size: 22px;
+    margin-top: 4px;
+    letter-spacing: -0.02em;
+  }
+  .head .route {
+    font-size: 13.5px;
+    color: var(--ink-2);
+    line-height: 1.55;
+  }
+
+  .stats {
+    display: flex;
+    padding: 0 24px;
+    margin-bottom: 28px;
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+  }
+  .stat {
+    flex: 1;
+    padding: 14px 10px 14px 0;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    min-width: 0;
+  }
+  .stat + .stat { border-left: 1px solid var(--line); padding-left: 12px; }
+  .stat-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .stat.food .stat-dot { background: var(--food); }
+  .stat.sight .stat-dot { background: var(--sight); }
+  .stat.shop .stat-dot { background: var(--shop); }
+  .stat.hotel .stat-dot { background: var(--hotel); }
+  .stat-num {
+    font-family: var(--mono);
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--ink);
+  }
+  .stat-label {
+    font-size: 11.5px;
+    color: var(--ink-3);
+    white-space: nowrap;
+  }
+
+  .map-section { margin: 0 24px 36px; }
+  .section-title {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 12px;
+  }
+  .section-title h2 {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--ink-3);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-family: var(--mono);
+  }
+  .section-title .count {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink-4);
+  }
+  .map {
+    height: 300px;
+    width: 100%;
+    border: 1px solid var(--line);
+    border-radius: 2px;
+    overflow: hidden;
+    background: #fafaf9;
+  }
+
+  .leaflet-container { background: #fafaf9 !important; font-family: var(--sans) !important; }
+  .leaflet-control-attribution {
+    background: rgba(255,255,255,0.85) !important;
+    font-size: 9px !important;
+    color: var(--ink-3) !important;
+    border: none !important;
+    padding: 2px 6px !important;
+  }
+  .leaflet-control-attribution a { color: var(--ink-2) !important; }
+  .leaflet-control-zoom { border: 1px solid var(--line) !important; box-shadow: none !important; }
+  .leaflet-control-zoom a {
+    background: #fff !important;
+    color: var(--ink) !important;
+    border-color: var(--line) !important;
+    width: 26px !important; height: 26px !important;
+    line-height: 24px !important;
+    font-size: 14px !important;
+  }
+  .leaflet-popup-content-wrapper {
+    background: #fff !important;
+    color: var(--ink) !important;
+    border: 1px solid var(--line) !important;
+    border-radius: 2px !important;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.06) !important;
+  }
+  .leaflet-popup-tip { background: #fff !important; box-shadow: none !important; }
+  .leaflet-popup-content { font-size: 12px !important; margin: 10px 12px !important; line-height: 1.5 !important; }
+  .leaflet-popup-content strong { font-size: 14px; font-weight: 600; display: block; margin-bottom: 2px; }
+  .leaflet-popup-content .meta { font-family: var(--mono); font-size: 10px; color: var(--ink-3); margin-top: 2px; }
+
+  .pin {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: #fff;
+    border: 1.5px solid var(--ink);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--ink);
+  }
+  .pin.food { border-color: var(--food); color: var(--food); }
+  .pin.sight { border-color: var(--sight); color: var(--sight); }
+  .pin.shop { border-color: var(--shop); color: var(--shop); }
+  .pin.hotel { border-color: var(--hotel); color: var(--hotel); }
+
+  .timeline { padding: 0 24px; }
+  .item {
+    display: grid;
+    grid-template-columns: 46px 1fr;
+    gap: 14px;
+    padding: 18px 0;
+    border-top: 1px solid var(--line);
+    position: relative;
+  }
+  .item:first-child { border-top: none; }
+
+  .item-time {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink-3);
+    padding-top: 1px;
+  }
+
+  .item-body { min-width: 0; }
+
+  .item-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 5px;
+  }
+  .item-cat {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .item.food .item-cat { background: var(--food); }
+  .item.sight .item-cat { background: var(--sight); }
+  .item.shop .item-cat { background: var(--shop); }
+  .item.hotel .item-cat { background: var(--hotel); }
+  .item-name {
+    font-size: 15px;
+    font-weight: 500;
+    line-height: 1.3;
+    letter-spacing: -0.015em;
+  }
+  .item-name .star {
+    color: var(--food);
+    margin-left: 4px;
+    font-size: 12px;
+  }
+  .item.hotel .item-name .star { color: var(--hotel); }
+  .item-desc {
+    font-size: 13px;
+    color: var(--ink-2);
+    line-height: 1.55;
+    margin-left: 14px;
+  }
+  .item-transport {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    color: var(--ink-3);
+    margin-left: 14px;
+    margin-top: 6px;
+  }
+
+  .notes {
+    margin: 36px 24px 0;
+    padding-top: 28px;
+    border-top: 1px solid var(--line);
+  }
+  .notes ul { list-style: none; }
+  .notes li {
+    font-size: 13px;
+    color: var(--ink-2);
+    line-height: 1.6;
+    padding: 8px 0 8px 20px;
+    position: relative;
+    border-top: 1px solid var(--line-2);
+  }
+  .notes li:first-of-type { border-top: none; }
+  .notes li::before {
+    content: "—";
+    position: absolute;
+    left: 0;
+    color: var(--ink-4);
+  }
+  .notes li strong { color: var(--ink); font-weight: 500; }
+
+  .foot {
+    margin: 56px 24px 0;
+    padding-top: 24px;
+    border-top: 1px solid var(--line);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    color: var(--ink-3);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  ::selection { background: var(--ink); color: var(--bg); }
+  ::-webkit-scrollbar { width: 0; }
+
+  @media (min-width: 520px) {
+    body {
+      border-left: 1px solid var(--line);
+      border-right: 1px solid var(--line);
+    }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <span class="brand">Hong Kong · 26</span>
+  <span>3 Days</span>
+</div>
+
+<nav class="nav">
+  <button class="nav-btn active" data-day="1"><span class="day-num">01</span>홍콩섬</button>
+  <button class="nav-btn" data-day="2"><span class="day-num">02</span>침사추이</button>
+  <button class="nav-btn" data-day="3"><span class="day-num">03</span>공항</button>
+</nav>
+
+<!-- ─── DAY 1 ─── -->
+<section class="view active" data-view="1">
+  <header class="head">
+    <div class="cap">Day 01 · Fri, Apr 17 · 도착일</div>
+    <h1>홍콩섬<span class="en">Hong Kong Island</span></h1>
+    <p class="route">11:55 공항 → 🚌버스 1h → 호텔(짐) → 점심 → 체크인 → 소호·셩완 → 완차이 → 코즈웨이베이 → 피크 야경</p>
+  </header>
+
+  <div class="stats">
+    <div class="stat food"><span class="stat-dot"></span><span class="stat-num">3</span><span class="stat-label">먹거리</span></div>
+    <div class="stat sight"><span class="stat-dot"></span><span class="stat-num">7</span><span class="stat-label">관광</span></div>
+    <div class="stat shop"><span class="stat-dot"></span><span class="stat-num">2</span><span class="stat-label">쇼핑</span></div>
+    <div class="stat hotel"><span class="stat-dot"></span><span class="stat-num">2</span><span class="stat-label">호텔</span></div>
+  </div>
+
+  <div class="map-section">
+    <div class="section-title"><h2>Route</h2><span class="count">14 stops</span></div>
+    <div class="map" id="map1"></div>
+  </div>
+
+  <div class="section-title" style="padding: 0 24px"><h2>Itinerary</h2></div>
+  <div class="timeline" id="timeline1"></div>
+
+  <div class="notes">
+    <div class="section-title"><h2>Notes</h2></div>
+    <ul>
+      <li><strong>도착일</strong> — 11:55 공항 도착 → 짐 찾고 입국 수속 → <strong>공항버스 약 1시간</strong> → 호텔 지역.</li>
+      <li><strong>점심 먼저 → 체크인</strong> 순서 — 체크인은 보통 15:00부터라 타이밍 맞음. 그 전엔 짐만 로비에 맡김.</li>
+      <li><strong>★ 꼭 방문:</strong> 침차이키(점심, 국수 1/2) · Bakehouse(에그타르트) · 모노가모스(저녁 식당).</li>
+      <li><strong>피크트램 + 피크타워 야경</strong> — 20:45 탑승, 21:15 전후 야경 절정. <strong>예약 권장</strong>.</li>
+      <li>호텔 조식은 Day 2·3에만. 완차이↔코즈웨이베이는 <strong>트램(ding-ding)</strong> 경험.</li>
+    </ul>
+  </div>
+
+  <div class="foot"><span>Day 01</span><span>Loopy · 26</span></div>
+</section>
+
+<!-- ─── DAY 2 ─── -->
+<section class="view" data-view="2">
+  <header class="head">
+    <div class="cap">Day 02 · Sat, Apr 18</div>
+    <h1>침사추이<span class="en">Kowloon</span></h1>
+    <p class="route">수영장 → 조식 → 야우마테이 → 몽콕 → 초이홍 → 구룡성채 → 침사추이 → 템플스트리트</p>
+  </header>
+
+  <div class="stats">
+    <div class="stat food"><span class="stat-dot"></span><span class="stat-num">4</span><span class="stat-label">먹거리</span></div>
+    <div class="stat sight"><span class="stat-dot"></span><span class="stat-num">4</span><span class="stat-label">관광</span></div>
+    <div class="stat shop"><span class="stat-dot"></span><span class="stat-num">3</span><span class="stat-label">쇼핑</span></div>
+    <div class="stat hotel"><span class="stat-dot"></span><span class="stat-num">2</span><span class="stat-label">호텔</span></div>
+  </div>
+
+  <div class="map-section">
+    <div class="section-title"><h2>Route</h2><span class="count">13 stops</span></div>
+    <div class="map" id="map2"></div>
+  </div>
+
+  <div class="section-title" style="padding: 0 24px"><h2>Itinerary</h2></div>
+  <div class="timeline" id="timeline2"></div>
+
+  <div class="notes">
+    <div class="section-title"><h2>Notes</h2></div>
+    <ul>
+      <li><strong>★ 19:00 Uncle Fong Hot Pot 예약 완료</strong> — Prince Tower 훠궈.</li>
+      <li><strong>★ 꼭 방문:</strong> 미도카페(아침 음료) · 원딤섬(점심) · 막만키(야식, 국수 2/2).</li>
+      <li>아침 <strong>수영장 → 조식 → 미도카페</strong> 순. 미도카페는 호텔 조식 후라 음료·간단히.</li>
+      <li>하루 <strong>조식 포함 5끼</strong> — 호텔 조식 → 미도 → 원딤섬 → Uncle Fong → 막만키.</li>
+      <li><strong>초이홍 + 구룡성채</strong>는 동선 가까움 묶음. 템플스트리트는 해 진 뒤가 진가.</li>
+    </ul>
+  </div>
+
+  <div class="foot"><span>Day 02</span><span>Loopy · 26</span></div>
+</section>
+
+<!-- ─── DAY 3 ─── -->
+<section class="view" data-view="3">
+  <header class="head">
+    <div class="cap">Day 03 · Sun, Apr 19 · 출국일</div>
+    <h1>공항 쇼핑<span class="en">Lantau · Departure</span></h1>
+    <p class="route">07:30 조식 → 08:30 체크아웃 → AEL → 시티게이트(09:30~) → 11:00 공항 → 13:15 탑승</p>
+  </header>
+
+  <div class="stats">
+    <div class="stat food"><span class="stat-dot"></span><span class="stat-num">1</span><span class="stat-label">먹거리</span></div>
+    <div class="stat sight"><span class="stat-dot"></span><span class="stat-num">3</span><span class="stat-label">관광</span></div>
+    <div class="stat shop"><span class="stat-dot"></span><span class="stat-num">2</span><span class="stat-label">쇼핑</span></div>
+    <div class="stat hotel"><span class="stat-dot"></span><span class="stat-num">2</span><span class="stat-label">호텔</span></div>
+  </div>
+
+  <div class="map-section">
+    <div class="section-title"><h2>Route</h2><span class="count">8 stops</span></div>
+    <div class="map" id="map3"></div>
+  </div>
+
+  <div class="section-title" style="padding: 0 24px"><h2>Itinerary</h2></div>
+  <div class="timeline" id="timeline3"></div>
+
+  <div class="notes">
+    <div class="section-title"><h2>Notes</h2></div>
+    <ul>
+      <li><strong>13:15 비행기 탑승</strong> — 11:00에 공항 도착해서 체크인·수속 여유있게.</li>
+      <li>AEL <strong>통쿵역</strong> 시티게이트 — 상점 대부분 <strong>10:00 오픈</strong>이라 09:30 도착해서 카페로 시간 맞추기. 최대 70% 할인.</li>
+      <li>시티게이트에서 공항까지는 AEL <strong>1정거장(3분)</strong>이니 10:45 출발 → 11:00 도착.</li>
+      <li>옥토퍼스 <strong>잔액은 공항 면세점/편의점</strong>에서 소진 or 환불.</li>
+      <li>옹핑 360 대불은 <strong>시간상 제외</strong> (왕복 1.5~2h).</li>
+    </ul>
+  </div>
+
+  <div class="foot"><span>Day 03</span><span>Loopy · 26</span></div>
+</section>
+
+<script>
+// 호텔 위치 (센트럴 가정 — 실제 호텔 확정 시 좌표 변경)
+const HOTEL = [22.2820, 114.1585];
+
+const data = {
+  1: [
+    { pos:[22.3080,113.9185], type:'sight', time:'11:55', name:'홍콩 공항 도착',          desc:'비행기 도착 · 짐 찾기 · 입국 수속',        t:'🛬 Arrival' },
+    { pos:[22.3080,113.9185], type:'sight', time:'12:30', name:'공항버스 탑승',           desc:'A11 / A21 등 · 호텔 방향 약 1시간',        t:'🚌 Airport Bus' },
+    { pos:HOTEL,              type:'hotel', time:'13:30', name:'호텔 로비 · 짐 보관',     desc:'체크인 전 짐만 맡김',                      t:'🚌 도착' },
+    { pos:[22.2845,114.1545], type:'food',  time:'14:00', name:'침차이키 완탕면',          desc:'Wellington St 98 · 점심 (국수 1/2)',       t:'도보', star:true },
+    { pos:HOTEL,              type:'hotel', time:'15:00', name:'호텔 정식 체크인',         desc:'짐 정리 · 잠시 휴식',                      t:'도보' },
+    { pos:[22.2824,114.1528], type:'food',  time:'16:00', name:'Bakehouse 센트럴',        desc:'Staunton St 5 · 에그타르트',               t:'도보', star:true },
+    { pos:[22.2830,114.1530], type:'sight', time:'16:30', name:'미드레벨 에스컬레이터 + 소호', desc:'세계에서 가장 긴 야외 에스컬레이터',    t:'도보' },
+    { pos:[22.2870,114.1513], type:'sight', time:'17:00', name:'셩완 빈티지거리',          desc:'사찰·골동품 (필수 #7)',                     t:'도보' },
+    { pos:[22.2840,114.1500], type:'food',  time:'17:30', name:'모노가모스',              desc:'셩완·소호 현지 식당 · 저녁',                t:'도보', star:true },
+    { pos:[22.2771,114.1725], type:'sight', time:'18:45', name:'완차이 우체국·사원',        desc:'옛 거리 빠르게 · 재래시장(현금)',            t:'🚋 트램' },
+    { pos:[22.2805,114.1826], type:'shop',  time:'19:15', name:'SOGO 코즈웨이베이',        desc:'파격 세일 · 화장품',                       t:'🚋 트램' },
+    { pos:[22.2798,114.1825], type:'shop',  time:'19:45', name:'타임스퀘어 + 하이산',       desc:'쇼핑몰 클러스터',                          t:'도보' },
+    { pos:[22.2783,114.1600], type:'sight', time:'20:45', name:'피크트램 탑승',           desc:'Garden Road 스테이션',                     t:'MTR 센트럴 → 도보' },
+    { pos:[22.2710,114.1500], type:'sight', time:'21:15', name:'피크타워 · 야경',          desc:'빅토리아 피크 홍콩 야경',                   t:'피크트램', star:true }
+  ],
+  2: [
+    { pos:HOTEL,              type:'hotel', time:'07:30', name:'호텔 수영장',              desc:'이른 아침 수영 (1시간)',                   t:'호텔 시설', star:true },
+    { pos:HOTEL,              type:'hotel', time:'08:45', name:'호텔 조식',                desc:'출발 전 아침 식사',                        t:'호텔 시설' },
+    { pos:[22.3085,114.1702], type:'food',  time:'10:00', name:'미도카페 (Mido Café)',     desc:'Temple St 63 · 밀크티/토스트',             t:'MTR 야우마테이', star:true },
+    { pos:[22.3020,114.1615], type:'sight', time:'11:00', name:'서구룡 문화지구',          desc:'M+ 미술관 (필수 #2)',                      t:'MTR 오스틴' },
+    { pos:[22.3235,114.1683], type:'food',  time:'13:00', name:'원딤섬 (One Dim Sum)',     desc:'몽콕 · 점심 딤섬',                        t:'MTR 프린스에드워드', star:true },
+    { pos:[22.3193,114.1694], type:'shop',  time:'14:30', name:'몽콕 꽃시장 + 레이디스',    desc:'로컬 쇼핑 · 기념품',                       t:'도보' },
+    { pos:[22.3350,114.2090], type:'sight', time:'15:30', name:'초이홍 아파트',            desc:'무지개 포토존 (필수 #5)',                  t:'MTR 초이홍' },
+    { pos:[22.3325,114.1910], type:'sight', time:'16:30', name:'구룡성채 공원',            desc:'역사 공원 (필수 #3)',                      t:'MTR 록푸' },
+    { pos:[22.2975,114.1722], type:'shop',  time:'17:30', name:'침사추이 + 플로렌시아 아울렛', desc:'명품 50% 할인 체크',                    t:'MTR 침사추이' },
+    { pos:[22.2940,114.1736], type:'sight', time:'18:30', name:'스타의 거리',             desc:'빅토리아 하버 · 저녁 산책',                t:'도보' },
+    { pos:[22.2970,114.1715], type:'food',  time:'19:00', name:'Uncle Fong Hot Pot',      desc:'Prince Tower · 훠궈 · 19:00 예약',         t:'도보', star:true },
+    { pos:[22.3105,114.1700], type:'shop',  time:'21:30', name:'템플스트리트 야시장',      desc:'흥정 · 길거리 쇼핑',                       t:'MTR 야우마테이' },
+    { pos:[22.3050,114.1708], type:'food',  time:'22:30', name:'막만키 완탕면',            desc:'Parkes St 51 · 야식 (국수 2/2)',           t:'도보', star:true }
+  ],
+  3: [
+    { pos:HOTEL,              type:'hotel', time:'07:30', name:'호텔 조식',                desc:'마지막 아침 식사',                         t:'호텔 시설' },
+    { pos:HOTEL,              type:'hotel', time:'08:30', name:'호텔 체크아웃',            desc:'짐 정리 · 체크아웃',                       t:'도보' },
+    { pos:[22.2820,114.1585], type:'sight', time:'09:00', name:'AEL 탑승 (홍콩역)',        desc:'공항철도 · 통쿵역 방향',                    t:'🚄 AEL' },
+    { pos:[22.2890,113.9425], type:'shop',  time:'09:30', name:'시티게이트 아울렛',        desc:'10:00 본격 오픈 · 최대 70% 할인',           t:'🚄 AEL 통쿵' },
+    { pos:[22.3080,113.9185], type:'sight', time:'11:00', name:'홍콩 공항 도착 · 체크인',   desc:'체크인 · 수하물 위탁 · 보안검색',            t:'🚄 AEL 1정거장' },
+    { pos:[22.3080,113.9185], type:'shop',  time:'12:00', name:'공항 면세 쇼핑',           desc:'옥토퍼스 잔액 소진',                       t:'도보' },
+    { pos:[22.3080,113.9185], type:'food',  time:'12:30', name:'공항 간단 식사',           desc:'탑승 전 간단히',                           t:'도보' },
+    { pos:[22.3080,113.9185], type:'sight', time:'13:15', name:'비행기 탑승',              desc:'13:15 출발',                              t:'✈️ Departure', star:true }
+  ]
+};
+
+function renderTimeline(day) {
+  const el = document.getElementById('timeline' + day);
+  el.innerHTML = data[day].map((it, i) => `
+    <div class="item ${it.type}">
+      <div class="item-time">${it.time}</div>
+      <div class="item-body">
+        <div class="item-head">
+          <span class="item-cat"></span>
+          <div class="item-name">${it.name}${it.star ? '<span class="star">★</span>' : ''}</div>
+        </div>
+        <div class="item-desc">${it.desc}</div>
+        <div class="item-transport">${it.t}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+const maps = {};
+function renderMap(day, center, zoom) {
+  if (maps[day]) return;
+  const map = L.map('map' + day, {
+    zoomControl: true,
+    attributionControl: true,
+    scrollWheelZoom: false
+  }).setView(center, zoom);
+
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+    attribution: '© OSM © CARTO',
+    maxZoom: 19,
+    subdomains: 'abcd'
+  }).addTo(map);
+
+  const pts = data[day];
+  const latlngs = pts.map(p => p.pos);
+
+  L.polyline(latlngs, {
+    color: '#0e0e0e',
+    weight: 1,
+    opacity: 0.35,
+    dashArray: '3, 5'
+  }).addTo(map);
+
+  pts.forEach((p, i) => {
+    const icon = L.divIcon({
+      className: '',
+      html: `<div class="pin ${p.type}">${i+1}</div>`,
+      iconSize: [22, 22],
+      iconAnchor: [11, 11]
+    });
+    L.marker(p.pos, { icon })
+      .bindPopup(`<strong>${p.name}</strong><div class="meta">${p.time} · ${p.type.toUpperCase()}</div><div style="margin-top:6px;color:#4a4a4a">${p.desc}</div>`)
+      .addTo(map);
+  });
+
+  map.fitBounds(latlngs, { padding: [30, 30] });
+  maps[day] = map;
+}
+
+document.querySelectorAll('.nav-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const day = btn.dataset.day;
+    document.querySelectorAll('.nav-btn').forEach(b => b.classList.toggle('active', b === btn));
+    document.querySelectorAll('.view').forEach(v => v.classList.toggle('active', v.dataset.view === day));
+    setTimeout(() => {
+      if (maps[day]) maps[day].invalidateSize();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }, 40);
+  });
+});
+
+renderTimeline(1); renderTimeline(2); renderTimeline(3);
+renderMap(1, [22.283, 114.16], 12);
+renderMap(2, [22.315, 114.18], 12);
+renderMap(3, [22.29, 113.96], 12);
+</script>
+</body>
+</html>
